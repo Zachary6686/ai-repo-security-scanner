@@ -27,7 +27,7 @@ Thumbs.db
 # Local secrets
 .env
 
-# Reports/output artifacts (generated)
+# Generated reports
 output/
 output/security_report.*
 security_report.*
