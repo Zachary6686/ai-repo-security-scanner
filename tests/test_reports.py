@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from core.severity import SEVERITY_LEVELS
 from reports.html_report import generate_html_report
 from reports.json_report import generate_json_report
 from reports.markdown_report import generate_markdown_report
@@ -14,14 +15,14 @@ class TestReportsSmoke(unittest.TestCase):
             "target": "sample",
             "files_scanned": 1,
             "total_findings": 1,
-            "severity_counts": {"HIGH": 1, "MEDIUM": 0, "LOW": 0},
+            "severity_counts": {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 0, "LOW": 0},
             "repository_risk_score": 10,
             "top_risky_files": [
                 {
                     "file_path": "sample.py",
                     "risk_score": 10,
                     "findings_count": 1,
-                    "severity_counts": {"HIGH": 1, "MEDIUM": 0, "LOW": 0},
+                    "severity_counts": {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 0, "LOW": 0},
                 }
             ],
             "findings": [
@@ -63,6 +64,25 @@ class TestReportsSmoke(unittest.TestCase):
             self.assertIn("AI Repo Security Scanner", html.read_text(encoding="utf-8"))
             self.assertIn('"tool": "AI Repo Security Scanner"', js.read_text(encoding="utf-8"))
             self.assertIn('"version": "2.1.0"', sarif.read_text(encoding="utf-8"))
+
+    def test_report_data_severity_counts_include_all_levels(self):
+        """Severity counts used in reports should support CRITICAL, HIGH, MEDIUM, LOW."""
+        from scanner import build_report_data
+        target = Path(__file__).resolve().parents[1] / "samples"
+        files = ["samples/vulnerable_sample.py"]
+        findings = [
+            {"file_path": "a.py", "severity": "CRITICAL", "confidence": "HIGH", "category": "Secret Exposure"},
+            {"file_path": "b.py", "severity": "HIGH", "confidence": "MEDIUM", "category": "Command Injection"},
+        ]
+        errors = []
+        data = build_report_data(target, files, findings, errors, top_files_n=5, top_categories_n=5)
+        for level in SEVERITY_LEVELS:
+            self.assertIn(level, data["severity_counts"])
+        self.assertEqual(data["severity_counts"]["CRITICAL"], 1)
+        self.assertEqual(data["severity_counts"]["HIGH"], 1)
+        self.assertIn("score_breakdown", data)
+        self.assertIn("risk_level", data)
+        self.assertIn("top_risky_categories", data)
 
 
 if __name__ == "__main__":

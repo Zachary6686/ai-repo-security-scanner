@@ -5,7 +5,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from core.repo_hygiene import get_hygiene_rule_metadata
+from core.rule_registry import LEGACY_RULE_ID_MAP, get_registry
 from core.rules_engine import get_all_regex_rules, get_python_ast_rule_metadata
+from core.taint_analysis import get_taint_rule_metadata
 
 
 SARIF_VERSION = "2.1.0"
@@ -26,6 +29,18 @@ def generate_sarif_report(report_data: Dict[str, Any], output_path) -> None:
     sarif_rules = _build_sarif_rules(rules_index)
     results = _build_results(findings, rules_index)
 
+    inv_properties: Dict[str, Any] = {"target": target}
+    run_risk_score = int(report_data.get("repository_risk_score", 0))
+    run_risk_level = str(report_data.get("risk_level", ""))
+    score_breakdown = report_data.get("score_breakdown") or {}
+
+    run_properties: Dict[str, Any] = {
+        "repository_risk_score": run_risk_score,
+        "risk_level": run_risk_level,
+    }
+    if score_breakdown:
+        run_properties["score_breakdown"] = score_breakdown
+
     sarif = {
         "$schema": SARIF_SCHEMA,
         "version": SARIF_VERSION,
@@ -43,10 +58,11 @@ def generate_sarif_report(report_data: Dict[str, Any], output_path) -> None:
                     {
                         "executionSuccessful": True,
                         "startTimeUtc": datetime.utcnow().isoformat() + "Z",
-                        "properties": {"target": target},
+                        "properties": inv_properties,
                     }
                 ],
                 "results": results,
+                "properties": run_properties,
             }
         ],
     }
@@ -57,7 +73,7 @@ def generate_sarif_report(report_data: Dict[str, Any], output_path) -> None:
 
 def _severity_to_level(severity: str) -> str:
     sev = str(severity).upper()
-    if sev == "HIGH":
+    if sev in ("CRITICAL", "HIGH"):
         return "error"
     if sev == "MEDIUM":
         return "warning"
@@ -66,18 +82,37 @@ def _severity_to_level(severity: str) -> str:
 
 def _build_rules_index() -> Dict[str, Dict[str, Any]]:
     """
-    Index rules by rule_id, merging AST metadata + regex rules.
+    Index rules by rule_id. Prefer rule metadata from registry (YAML);
+    fall back to module metadata for any rule not in registry.
     """
     index: Dict[str, Dict[str, Any]] = {}
+    registry = get_registry()
+
+    for rule in registry.get_all():
+        rid = str(rule.get("rule_id", ""))
+        if rid:
+            r = dict(rule)
+            if not r.get("recommendation") and r.get("remediation"):
+                r["recommendation"] = r["remediation"]
+            index[rid] = r
+    for legacy_id, canonical_id in LEGACY_RULE_ID_MAP.items():
+        if legacy_id not in index and canonical_id in index:
+            index[legacy_id] = dict(index[canonical_id])
 
     for rule in get_python_ast_rule_metadata():
-        index[str(rule["rule_id"])] = rule
-
+        index.setdefault(str(rule.get("rule_id", "")), rule)
     for rule in get_all_regex_rules():
         rid = str(rule.get("rule_id", ""))
-        if not rid:
-            continue
-        index.setdefault(rid, rule)
+        if rid:
+            index.setdefault(rid, rule)
+    for rule in get_hygiene_rule_metadata():
+        rid = str(rule.get("rule_id", ""))
+        if rid:
+            index.setdefault(rid, rule)
+    for rule in get_taint_rule_metadata():
+        rid = str(rule.get("rule_id", ""))
+        if rid:
+            index.setdefault(rid, rule)
 
     return index
 
@@ -88,13 +123,33 @@ def _build_sarif_rules(rules_index: Dict[str, Dict[str, Any]]) -> List[Dict[str,
         rule = rules_index[rule_id]
         title = str(rule.get("title", rule_id))
         description = str(rule.get("description", "")).strip()
-        recommendation = str(rule.get("recommendation", "")).strip()
+        recommendation = str(rule.get("recommendation", "") or rule.get("remediation", "")).strip()
 
         full_desc_parts = []
         if description:
             full_desc_parts.append(description)
         if recommendation:
-            full_desc_parts.append(f"Recommendation: {recommendation}")
+            full_desc_parts.append(f"Remediation: {recommendation}")
+        cwe = rule.get("cwe")
+        owasp = rule.get("owasp")
+        if cwe or owasp:
+            full_desc_parts.append("References: " + ", ".join(filter(None, [cwe, owasp])))
+
+        help_text = recommendation or "Review and remediate this issue."
+        if cwe:
+            help_text += f" ({cwe})"
+        if owasp:
+            help_text += f" [{owasp}]"
+
+        props: Dict[str, Any] = {
+            "category": rule.get("category", "General"),
+            "severity": rule.get("severity", "LOW"),
+            "confidence": rule.get("confidence", "MEDIUM"),
+        }
+        if cwe:
+            props["cwe"] = cwe
+        if owasp:
+            props["owasp"] = owasp
 
         sarif_rules.append(
             {
@@ -102,12 +157,8 @@ def _build_sarif_rules(rules_index: Dict[str, Dict[str, Any]]) -> List[Dict[str,
                 "name": rule_id,
                 "shortDescription": {"text": title},
                 "fullDescription": {"text": "\n".join(full_desc_parts) if full_desc_parts else title},
-                "help": {"text": recommendation or "Review and remediate this issue."},
-                "properties": {
-                    "category": rule.get("category", "General"),
-                    "severity": rule.get("severity", "LOW"),
-                    "confidence": rule.get("confidence", "MEDIUM"),
-                },
+                "help": {"text": help_text},
+                "properties": props,
             }
         )
     return sarif_rules

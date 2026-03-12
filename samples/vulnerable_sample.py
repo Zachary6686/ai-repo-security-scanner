@@ -18,3 +18,16 @@ def parse_yaml(text):
 def unsafe_eval(x):
     eval(x)
 
+
+def taint_demo_command():
+    """Taint flow: input() -> os.system (command injection)."""
+    user = input()
+    os.system(user)
+
+
+def taint_demo_sql():
+    """Taint flow: request.args -> cursor.execute (SQL injection)."""
+    name = request.args["name"]
+    query = "SELECT * FROM users WHERE name=" + name
+    cursor.execute(query)
+

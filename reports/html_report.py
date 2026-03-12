@@ -1,10 +1,19 @@
+"""HTML report generator: standalone security dashboard with risk summary and findings."""
+from __future__ import annotations
+
 from html import escape
 from pathlib import Path
+from typing import Any, Dict, Union
 
 
-def generate_html_report(report_data, output_path):
+def generate_html_report(
+    report_data: Dict[str, Any], output_path: Union[str, Path]
+) -> None:
     """
     Generate a standalone HTML security dashboard.
+
+    Writes a single self-contained HTML file with risk cards, severity/category
+    distribution, top risky files and categories, score breakdown, and searchable findings.
 
     Expected report_data format:
     {
@@ -23,10 +32,15 @@ def generate_html_report(report_data, output_path):
     total_findings = int(report_data.get("total_findings", 0))
     severity_counts = report_data.get("severity_counts", {}) or {}
     repository_risk_score = int(report_data.get("repository_risk_score", 0))
+    risk_level = str(report_data.get("risk_level", "") or _get_risk_label_from_score(repository_risk_score))
+    risk_level_css = str(report_data.get("risk_level_css_class", "") or _get_risk_css_class(repository_risk_score))
+    score_breakdown = report_data.get("score_breakdown") or {}
     top_risky_files = report_data.get("top_risky_files", []) or []
+    top_risky_categories = report_data.get("top_risky_categories", []) or []
     findings = report_data.get("findings", []) or []
     scan_errors = report_data.get("scan_errors", []) or []
 
+    critical_count = int(severity_counts.get("CRITICAL", 0))
     high_count = int(severity_counts.get("HIGH", 0))
     medium_count = int(severity_counts.get("MEDIUM", 0))
     low_count = int(severity_counts.get("LOW", 0))
@@ -35,9 +49,31 @@ def generate_html_report(report_data, output_path):
         files_scanned=files_scanned,
         total_findings=total_findings,
         repository_risk_score=repository_risk_score,
+        risk_level=risk_level,
+        risk_level_css=risk_level_css,
+        critical_count=critical_count,
         high_count=high_count,
         medium_count=medium_count,
         low_count=low_count,
+    )
+
+    severity_distribution_html = _build_severity_distribution(severity_counts, total_findings)
+    category_distribution_html = _build_category_distribution(top_risky_categories)
+    risk_explanation_html = _build_risk_explanation_panel(repository_risk_score, risk_level, score_breakdown)
+
+    hygiene_categories = {"Repository Hygiene", "Sensitive Artifacts", "Secret Exposure", "Secret Exposure Risks"}
+    hygiene_findings = [f for f in findings if f.get("category") in hygiene_categories]
+    hygiene_section_html = (
+        _build_findings_table(hygiene_findings)
+        if hygiene_findings
+        else '<div class="empty-state">No repository hygiene issues detected.</div>'
+    )
+
+    taint_findings = [f for f in findings if f.get("taint_flow")]
+    taint_section_html = (
+        _build_findings_table(taint_findings)
+        if taint_findings
+        else '<div class="empty-state">No taint flow findings.</div>'
     )
 
     risky_files_html = _build_top_risky_files_table(top_risky_files)
@@ -59,6 +95,7 @@ def generate_html_report(report_data, output_path):
             --text: #e7ecf3;
             --muted: #95a2b8;
             --accent: #67b7ff;
+            --critical: #e63946;
             --high: #ff5d73;
             --medium: #ffb84d;
             --low: #5fd0a5;
@@ -178,6 +215,74 @@ def generate_html_report(report_data, output_path):
             border-color: rgba(95, 208, 165, 0.28);
         }}
 
+        .risk-critical {{
+            background: rgba(230, 57, 70, 0.15);
+            color: var(--critical);
+            border-color: rgba(230, 57, 70, 0.35);
+        }}
+
+        .risk-moderate {{
+            background: rgba(255, 184, 77, 0.12);
+            color: var(--medium);
+            border-color: rgba(255, 184, 77, 0.28);
+        }}
+
+        .bar-chart {{
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }}
+
+        .bar-row {{
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }}
+
+        .bar-label {{
+            min-width: 90px;
+            font-size: 13px;
+            font-weight: 600;
+        }}
+
+        .bar-track {{
+            flex: 1;
+            height: 24px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 8px;
+            overflow: hidden;
+        }}
+
+        .bar-fill {{
+            height: 100%;
+            border-radius: 8px;
+            min-width: 4px;
+            transition: width 0.3s ease;
+        }}
+
+        .breakdown-table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }}
+
+        .breakdown-table th {{
+            text-align: left;
+            padding: 10px 12px;
+            color: var(--muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+        }}
+
+        .breakdown-table td {{
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(39, 50, 74, 0.5);
+        }}
+
+        .breakdown-table tr:last-child td {{
+            border-bottom: none;
+        }}
+
         .toolbar {{
             display: flex;
             flex-wrap: wrap;
@@ -280,6 +385,12 @@ def generate_html_report(report_data, output_path):
             color: var(--low);
             background: rgba(95, 208, 165, 0.12);
             border-color: rgba(95, 208, 165, 0.28);
+        }}
+
+        .badge-critical {{
+            color: var(--critical);
+            background: rgba(230, 57, 70, 0.15);
+            border-color: rgba(230, 57, 70, 0.35);
         }}
 
         .sub-badge {{
@@ -397,13 +508,46 @@ def generate_html_report(report_data, output_path):
         </div>
 
         <div class="panel section">
-            <h2 class="section-title">Scan Overview</h2>
+            <h2 class="section-title">Risk Summary</h2>
             {summary_cards_html}
+        </div>
+
+        <div class="panel section">
+            <h2 class="section-title">Risk Score Explanation</h2>
+            {risk_explanation_html}
+        </div>
+
+        <div class="panel section">
+            <h2 class="section-title">Severity Distribution</h2>
+            {severity_distribution_html}
+        </div>
+
+        <div class="panel section">
+            <h2 class="section-title">Top Risky Rule Categories</h2>
+            {category_distribution_html}
         </div>
 
         <div class="panel section">
             <h2 class="section-title">Top Risky Files</h2>
             {risky_files_html}
+        </div>
+
+        <div class="panel section">
+            <h2 class="section-title">Repository Hygiene Issues</h2>
+            <div class="small-note">
+                Tracked sensitive files, .gitignore gaps, and remediation guidance.
+            </div>
+            <div style="height: 12px;"></div>
+            {hygiene_section_html}
+        </div>
+
+        <div class="panel section">
+            <h2 class="section-title">Taint Flow Findings</h2>
+            <div class="small-note">
+                Data flow from sources (e.g. input(), request.args) to dangerous sinks.
+            </div>
+            <div style="height: 12px;"></div>
+            {taint_section_html}
         </div>
 
         <div class="panel section">
@@ -460,16 +604,44 @@ def generate_html_report(report_data, output_path):
     output_path.write_text(html, encoding="utf-8")
 
 
+def _get_risk_label_from_score(score):
+    """Align with core/risk.py bands: 0–20 Low, 21–50 Moderate, 51–100 High, >100 Critical."""
+    if score <= 20:
+        return "Low"
+    if score <= 50:
+        return "Moderate"
+    if score <= 100:
+        return "High"
+    return "Critical"
+
+
+def _get_risk_css_class(score):
+    level = _get_risk_label_from_score(score).lower()
+    return f"risk-{level}"
+
+
 def _build_summary_cards(
     files_scanned,
     total_findings,
     repository_risk_score,
-    high_count,
-    medium_count,
-    low_count,
+    risk_level="",
+    risk_level_css="",
+    critical_count=0,
+    high_count=0,
+    medium_count=0,
+    low_count=0,
 ):
-    risk_label, risk_class = _get_risk_label_and_class(repository_risk_score)
-
+    if not risk_level:
+        risk_level = _get_risk_label_from_score(repository_risk_score)
+    if not risk_level_css:
+        risk_level_css = _get_risk_css_class(repository_risk_score)
+    critical_card = ""
+    if critical_count:
+        critical_card = f"""
+        <div class="card">
+            <div class="card-label">CRITICAL</div>
+            <div class="card-value" style="color: var(--critical);">{critical_count}</div>
+        </div>"""
     return f"""
     <div class="cards">
         <div class="card">
@@ -481,12 +653,13 @@ def _build_summary_cards(
             <div class="card-value">{total_findings}</div>
         </div>
         <div class="card">
-            <div class="card-label">Repository Risk Score</div>
+            <div class="card-label">Risk Score</div>
             <div class="card-value risk-score">
                 {repository_risk_score}
-                <span class="risk-pill {risk_class}">{risk_label}</span>
+                <span class="risk-pill {risk_level_css}">{escape(risk_level)}</span>
             </div>
         </div>
+        {critical_card}
         <div class="card">
             <div class="card-label">HIGH</div>
             <div class="card-value" style="color: var(--high);">{high_count}</div>
@@ -503,6 +676,124 @@ def _build_summary_cards(
     """
 
 
+def _build_severity_distribution(severity_counts, total_findings):
+    """Horizontal bar chart of severity counts."""
+    crit = int(severity_counts.get("CRITICAL", 0))
+    high = int(severity_counts.get("HIGH", 0))
+    med = int(severity_counts.get("MEDIUM", 0))
+    low = int(severity_counts.get("LOW", 0))
+    max_count = max(crit, high, med, low, 1)
+    total = total_findings or 1
+
+    def pct(c):
+        return (c / total) * 100
+
+    def bar_pct(c):
+        return (c / max_count) * 100 if max_count else 0
+
+    rows = []
+    if crit:
+        rows.append(
+            f'<div class="bar-row">'
+            f'<span class="bar-label" style="color: var(--critical);">CRITICAL</span>'
+            f'<div class="bar-track"><div class="bar-fill" style="width:{bar_pct(crit)}%; background: var(--critical);"></div></div>'
+            f'<span class="muted" style="min-width: 60px;">{crit} ({pct(crit):.0f}%)</span></div>'
+        )
+    if high:
+        rows.append(
+            f'<div class="bar-row">'
+            f'<span class="bar-label" style="color: var(--high);">HIGH</span>'
+            f'<div class="bar-track"><div class="bar-fill" style="width:{bar_pct(high)}%; background: var(--high);"></div></div>'
+            f'<span class="muted" style="min-width: 60px;">{high} ({pct(high):.0f}%)</span></div>'
+        )
+    if med:
+        rows.append(
+            f'<div class="bar-row">'
+            f'<span class="bar-label" style="color: var(--medium);">MEDIUM</span>'
+            f'<div class="bar-track"><div class="bar-fill" style="width:{bar_pct(med)}%; background: var(--medium);"></div></div>'
+            f'<span class="muted" style="min-width: 60px;">{med} ({pct(med):.0f}%)</span></div>'
+        )
+    if low:
+        rows.append(
+            f'<div class="bar-row">'
+            f'<span class="bar-label" style="color: var(--low);">LOW</span>'
+            f'<div class="bar-track"><div class="bar-fill" style="width:{bar_pct(low)}%; background: var(--low);"></div></div>'
+            f'<span class="muted" style="min-width: 60px;">{low} ({pct(low):.0f}%)</span></div>'
+        )
+    if not rows:
+        return '<div class="empty-state">No findings — no severity distribution.</div>'
+    return f'<div class="bar-chart">{"".join(rows)}</div>'
+
+
+def _build_category_distribution(top_risky_categories):
+    """Table or list of top vulnerability categories by finding count."""
+    if not top_risky_categories:
+        return '<div class="empty-state">No categories (no findings).</div>'
+    rows = []
+    for item in top_risky_categories:
+        cat = escape(str(item.get("category", "General")))
+        count = int(item.get("count", 0))
+        rows.append(f"<tr><td class=\"path\">{cat}</td><td><strong>{count}</strong> findings</td></tr>")
+    return f"""
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>Category</th><th>Findings</th></tr>
+            </thead>
+            <tbody>
+                {"".join(rows)}
+            </tbody>
+        </table>
+    </div>
+    """
+
+
+def _build_risk_explanation_panel(repository_risk_score, risk_level, score_breakdown):
+    """Explain how the risk score was computed (breakdown table)."""
+    if not score_breakdown:
+        return (
+            f'<p class="muted">Risk score: <strong>{repository_risk_score}</strong> — '
+            f'Level: <strong>{escape(risk_level)}</strong>. '
+            'Breakdown not available (upgrade scanner for full breakdown).</p>'
+        )
+    rows = []
+    labels = {
+        "critical_contribution": "CRITICAL findings × 10",
+        "high_contribution": "HIGH findings × 6",
+        "medium_contribution": "MEDIUM findings × 3",
+        "low_contribution": "LOW findings × 1",
+        "severity_contribution": "Total severity score",
+        "taint_flow_contribution": "Taint-flow findings bonus",
+        "secret_exposure_contribution": "Secret exposure bonus",
+        "repository_hygiene_contribution": "Repository hygiene contribution",
+        "file_concentration_factor": "File concentration factor",
+        "unique_files_factor": "Unique vulnerable files factor",
+        "critical_category_contribution": "Critical category bonus (e.g. injection, secrets)",
+    }
+    for key, label in labels.items():
+        val = score_breakdown.get(key, 0)
+        if isinstance(val, (int, float)):
+            rows.append(f"<tr><td>{escape(label)}</td><td>{val}</td></tr>")
+    if not rows:
+        return f'<p class="muted">Risk score: <strong>{repository_risk_score}</strong> — Level: <strong>{escape(risk_level)}</strong>.</p>'
+    table_body = "".join(rows)
+    return f"""
+    <p class="muted" style="margin-bottom: 14px;">
+        The repository risk score is the sum of weighted contributions. Level: <strong>{escape(risk_level)}</strong>.
+    </p>
+    <div class="table-wrap">
+        <table class="breakdown-table">
+            <thead>
+                <tr><th>Factor</th><th>Contribution</th></tr>
+            </thead>
+            <tbody>
+                {table_body}
+            </tbody>
+        </table>
+    </div>
+    """
+
+
 def _build_top_risky_files_table(top_risky_files):
     if not top_risky_files:
         return '<div class="empty-state">No risky files detected.</div>'
@@ -515,10 +806,11 @@ def _build_top_risky_files_table(top_risky_files):
         findings_count = int(item.get("findings_count", 0))
         sev = item.get("severity_counts", {}) or {}
 
+        critical = int(sev.get("CRITICAL", 0))
         high = int(sev.get("HIGH", 0))
         medium = int(sev.get("MEDIUM", 0))
         low = int(sev.get("LOW", 0))
-
+        crit_badge = f'<span class="badge badge-critical">CRIT {critical}</span>' if critical else ""
         rows.append(
             f"""
         <tr>
@@ -526,6 +818,7 @@ def _build_top_risky_files_table(top_risky_files):
             <td>{risk_score}</td>
             <td>{findings_count}</td>
             <td>
+                {crit_badge}
                 <span class="badge badge-high">HIGH {high}</span>
                 <span class="badge badge-medium" style="margin-left:6px;">MED {medium}</span>
                 <span class="badge badge-low" style="margin-left:6px;">LOW {low}</span>
@@ -571,6 +864,9 @@ def _build_findings_table(findings):
         recommendation = str(
             finding.get("recommendation") or finding.get("suggested_fix") or ""
         )
+        remediation = str(finding.get("remediation", ""))
+        cwe = str(finding.get("cwe", ""))
+        owasp = str(finding.get("owasp", ""))
         code_snippet = str(
             finding.get("code_snippet")
             or finding.get("snippet")
@@ -591,12 +887,15 @@ def _build_findings_table(findings):
                 str(line_number),
                 description,
                 recommendation,
+                remediation,
+                cwe,
+                owasp,
                 code_snippet,
             ]
         )
 
         details_html = ""
-        if description or recommendation or code_snippet:
+        if description or recommendation or remediation or cwe or owasp or code_snippet:
             description_html = (
                 f"<div><strong>Description:</strong> {escape(description)}</div>"
                 if description
@@ -605,6 +904,17 @@ def _build_findings_table(findings):
             recommendation_html = (
                 f"<div style='margin-top:8px;'><strong>Recommendation:</strong> {escape(recommendation)}</div>"
                 if recommendation
+                else ""
+            )
+            remediation_html = (
+                f"<div style='margin-top:8px;'><strong>Remediation:</strong> {escape(remediation)}</div>"
+                if remediation
+                else ""
+            )
+            refs = ", ".join(filter(None, [cwe, owasp]))
+            refs_html = (
+                f"<div style='margin-top:8px;' class='muted'><strong>References:</strong> {escape(refs)}</div>"
+                if refs
                 else ""
             )
             snippet_html = (
@@ -619,6 +929,8 @@ def _build_findings_table(findings):
                 <div style="margin-top:10px;">
                     {description_html}
                     {recommendation_html}
+                    {remediation_html if remediation else ""}
+                    {refs_html}
                     {snippet_html}
                 </div>
             </details>
@@ -683,6 +995,8 @@ def _build_scan_errors_section(scan_errors):
 def _build_severity_badge(severity):
     severity = str(severity).upper()
 
+    if severity == "CRITICAL":
+        return '<span class="badge badge-critical">CRITICAL</span>'
     if severity == "HIGH":
         return '<span class="badge badge-high">HIGH</span>'
     if severity == "MEDIUM":
@@ -691,9 +1005,8 @@ def _build_severity_badge(severity):
 
 
 def _get_risk_label_and_class(score):
-    if score >= 70:
-        return "HIGH", "risk-pill risk-high"
-    if score >= 35:
-        return "MEDIUM", "risk-pill risk-medium"
-    return "LOW", "risk-pill risk-low"
+    """Align with core/risk.py: 0–20 Low, 21–50 Moderate, 51–100 High, >100 Critical."""
+    label = _get_risk_label_from_score(score)
+    cls = _get_risk_css_class(score)
+    return label, f"risk-pill {cls}"
 

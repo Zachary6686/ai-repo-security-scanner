@@ -8,13 +8,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from core.rules_engine import get_all_rules
-
-
-SEVERITY_WEIGHTS = {
-    "HIGH": 10,
-    "MEDIUM": 5,
-    "LOW": 2,
-}
+from core.severity import SEVERITY_WEIGHTS, normalize_severity
+from core.taint_analysis import analyze_file_taint
 
 
 # 这些行更像规则定义/说明文字，不应被当成真实漏洞代码
@@ -63,6 +58,8 @@ def analyze_file(file_path: str) -> List[Dict[str, Any]]:
     # 1) Python: AST-based detection for dangerous calls
     if suffix == ".py":
         findings.extend(_analyze_python_ast(path, content, lines))
+        # 1b) Intra-procedural taint analysis
+        findings.extend(analyze_file_taint(str(path), content, lines))
 
     # 2) Regex-based supplemental detection
     findings.extend(_analyze_with_regex(path, content, lines))
@@ -70,11 +67,11 @@ def analyze_file(file_path: str) -> List[Dict[str, Any]]:
     # 3) 去重
     findings = _deduplicate_findings(findings)
 
-    # 4) 排序：按行号 + 严重程度
+    # 4) Sort: line number, then severity (high first), then rule_id
     findings.sort(
         key=lambda f: (
             f.get("line_number", 0),
-            -SEVERITY_WEIGHTS.get(f.get("severity", "LOW"), 0),
+            -SEVERITY_WEIGHTS.get(normalize_severity(f.get("severity")), 0),
             f.get("rule_id", ""),
         )
     )

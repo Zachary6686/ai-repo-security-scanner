@@ -1,5 +1,8 @@
-import os
+"""Repository and file collection utilities for the scanner."""
+from __future__ import annotations
 
+import os
+from typing import List
 
 SUPPORTED_EXTENSIONS = {
     ".py",
@@ -25,12 +28,18 @@ EXCLUDED_DIRS = {
 }
 
 
-def get_source_files(root_path):
+def get_source_files(root_path: str) -> List[str]:
     """
     Recursively collect source files from a directory.
 
+    Walks the tree under root_path, skipping EXCLUDED_DIRS, and returns
+    paths to files whose extension is in SUPPORTED_EXTENSIONS.
+
+    Args:
+        root_path: Directory path to scan.
+
     Returns:
-        list[str] : list of file paths
+        List of file paths (relative or absolute depending on root_path).
     """
     source_files = []
 

@@ -1,9 +1,22 @@
+"""JSON report generator: structured export for automation."""
+from __future__ import annotations
+
 import json
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Union
 
 
-def generate_json_report(report_data, output_path):
+def generate_json_report(
+    report_data: Dict[str, Any], output_path: Union[str, Path]
+) -> None:
+    """
+    Write a structured JSON report for automation and tooling.
+
+    Output includes: tool metadata, scan_summary (files_scanned, total_findings,
+    severity_counts, repository_risk_score, risk_level, score_breakdown),
+    top_risky_files, top_risky_categories, findings, and scan_errors.
+    """
     output = {
         "tool": "AI Repo Security Scanner",
         "version": "1.0.0",
@@ -14,8 +27,11 @@ def generate_json_report(report_data, output_path):
             "total_findings": report_data.get("total_findings", 0),
             "severity_counts": report_data.get("severity_counts", {}),
             "repository_risk_score": report_data.get("repository_risk_score", 0),
+            "risk_level": report_data.get("risk_level", ""),
+            "score_breakdown": report_data.get("score_breakdown", {}),
         },
         "top_risky_files": report_data.get("top_risky_files", []),
+        "top_risky_categories": report_data.get("top_risky_categories", []),
         "findings": report_data.get("findings", []),
         "scan_errors": report_data.get("scan_errors", []),
     }
