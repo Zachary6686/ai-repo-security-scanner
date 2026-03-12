@@ -1,5 +1,7 @@
 """Benchmark: unsafe deserialization — SAFE."""
+
 import json
+
 import yaml
 
 

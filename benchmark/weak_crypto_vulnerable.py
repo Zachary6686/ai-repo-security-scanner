@@ -1,4 +1,5 @@
 """Benchmark: weak crypto — VULNERABLE."""
+
 import hashlib
 import random
 

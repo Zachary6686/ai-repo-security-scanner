@@ -4,6 +4,7 @@ Canonical severity model for AI Repo Security Scanner.
 All detection, risk scoring, and reporting use this single definition.
 Severity levels: CRITICAL, HIGH, MEDIUM, LOW.
 """
+
 from __future__ import annotations
 
 from typing import Dict

@@ -24,4 +24,3 @@ If there are no obvious issues, say:
 Findings:
 - [Low] No obvious high-confidence security issue found
 """
-

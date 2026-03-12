@@ -1,5 +1,6 @@
 import os
 import pickle
+
 import yaml
 
 
@@ -30,4 +31,3 @@ def taint_demo_sql():
     name = request.args["name"]
     query = "SELECT * FROM users WHERE name=" + name
     cursor.execute(query)
-

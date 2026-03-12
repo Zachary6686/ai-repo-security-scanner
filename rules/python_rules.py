@@ -32,4 +32,3 @@ def get_rules() -> List[Dict[str, Any]]:
             "non_python_only": True,
         },
     ]
-

@@ -1,4 +1,5 @@
 """Benchmark: path traversal — SAFE (fixed path, no user in path)."""
+
 import os
 
 

@@ -1,4 +1,5 @@
 """Repository and file collection utilities for the scanner."""
+
 from __future__ import annotations
 
 import os
@@ -56,4 +57,3 @@ def get_source_files(root_path: str) -> List[str]:
                 source_files.append(file_path)
 
     return source_files
-

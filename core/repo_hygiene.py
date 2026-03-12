@@ -4,6 +4,7 @@ Repository hygiene and secure development checks.
 Detects sensitive artifacts, tracked files that should be ignored,
 and .gitignore gaps. Findings include remediation guidance.
 """
+
 from __future__ import annotations
 
 import os
@@ -13,16 +14,28 @@ from typing import Any, Dict, List, Tuple
 
 # Sensitive filenames or patterns (exact name or suffix)
 # Env/secret files (key files id_rsa etc. are handled separately as RH003)
-SENSITIVE_FILE_NAMES = frozenset({
-    ".env",
-    ".env.local",
-    ".env.development",
-    ".env.production",
-    ".env.secret",
-})
-SENSITIVE_EXTENSIONS = frozenset({
-    ".pem", ".key", ".crt", ".p12", ".pfx", ".jks", ".keystore", ".pyc", ".pyo",
-})
+SENSITIVE_FILE_NAMES = frozenset(
+    {
+        ".env",
+        ".env.local",
+        ".env.development",
+        ".env.production",
+        ".env.secret",
+    }
+)
+SENSITIVE_EXTENSIONS = frozenset(
+    {
+        ".pem",
+        ".key",
+        ".crt",
+        ".p12",
+        ".pfx",
+        ".jks",
+        ".keystore",
+        ".pyc",
+        ".pyo",
+    }
+)
 # Directories that should not be committed
 SENSITIVE_DIR_NAMES = frozenset({"__pycache__", ".pytest_cache", "node_modules"})
 
@@ -34,7 +47,10 @@ SECRET_PATTERN_AWS = re.compile(r"\bAKIA[0-9A-Z]{16}\b")
 # GitHub personal access token
 SECRET_PATTERN_GITHUB = re.compile(r"\bghp_[A-Za-z0-9]{36}\b")
 # Generic API key (common placeholder patterns; avoid false positives with short strings)
-SECRET_PATTERN_GENERIC = re.compile(r"\b(?:api[_-]?key|apikey|secret[_-]?key)\s*[:=]\s*['\"]?([A-Za-z0-9_\-]{32,})['\"]?", re.IGNORECASE)
+SECRET_PATTERN_GENERIC = re.compile(
+    r"\b(?:api[_-]?key|apikey|secret[_-]?key)\s*[:=]\s*['\"]?([A-Za-z0-9_\-]{32,})['\"]?",
+    re.IGNORECASE,
+)
 
 # All secret patterns to scan for (name, pattern, description)
 SECRET_PATTERNS: List[Tuple[str, re.Pattern[str], str]] = [
@@ -104,8 +120,22 @@ def _scan_file_for_secrets(
     If any pattern matches, append a CRITICAL finding. Skips binary/extensions we don't scan.
     """
     # Only scan text-like files to avoid binary and huge files
-    text_extensions = (".py", ".env", ".json", ".yaml", ".yml", ".txt", ".md", ".cfg", ".ini", ".toml", ".conf")
-    if not name_lower.startswith(".env") and not any(name_lower.endswith(ext) or name_lower.endswith(ext + ".bak") for ext in text_extensions):
+    text_extensions = (
+        ".py",
+        ".env",
+        ".json",
+        ".yaml",
+        ".yml",
+        ".txt",
+        ".md",
+        ".cfg",
+        ".ini",
+        ".toml",
+        ".conf",
+    )
+    if not name_lower.startswith(".env") and not any(
+        name_lower.endswith(ext) or name_lower.endswith(ext + ".bak") for ext in text_extensions
+    ):
         return
     try:
         content = Path(file_path_abs).read_text(encoding="utf-8", errors="ignore")
@@ -194,11 +224,13 @@ def scan_repository_hygiene(root_path: str) -> List[Dict[str, Any]]:
                             file_path=path_key,
                             description=f"Directory '{d}' should not be committed. It is generated/cache content.",
                             recommendation="Add this directory to .gitignore and remove from git history if already tracked.",
-                            remediation="Add to .gitignore: " + (d + "/" if not d.endswith("/") else d)
-                            + ". Then run: git rm -r --cached " + path_key
+                            remediation="Add to .gitignore: "
+                            + (d + "/" if not d.endswith("/") else d)
+                            + ". Then run: git rm -r --cached "
+                            + path_key
                             + " (if already tracked).",
                         )
-                )
+                    )
                 dirnames.remove(d)
 
         for filename in filenames:
@@ -350,7 +382,9 @@ def check_gitignore_hygiene(root_path: str) -> List[Dict[str, Any]]:
     return findings
 
 
-def _read_gitignore_patterns(gitignore_path: Path) -> Tuple[List[Tuple[str, str]], List[Tuple[str, str]]]:
+def _read_gitignore_patterns(
+    gitignore_path: Path,
+) -> Tuple[List[Tuple[str, str]], List[Tuple[str, str]]]:
     """Return (present_patterns, missing_patterns) from REQUIRED_GITIGNORE_PATTERNS."""
     present: List[Tuple[str, str]] = []
     missing: List[Tuple[str, str]] = []
@@ -360,7 +394,11 @@ def _read_gitignore_patterns(gitignore_path: Path) -> Tuple[List[Tuple[str, str]
 
     try:
         content = gitignore_path.read_text(encoding="utf-8", errors="ignore")
-        lines = [line.strip() for line in content.splitlines() if line.strip() and not line.strip().startswith("#")]
+        lines = [
+            line.strip()
+            for line in content.splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
     except OSError:
         return [], list(REQUIRED_GITIGNORE_PATTERNS)
 
@@ -376,12 +414,68 @@ def _read_gitignore_patterns(gitignore_path: Path) -> Tuple[List[Tuple[str, str]
 def get_hygiene_rule_metadata() -> List[Dict[str, Any]]:
     """Return rule metadata for repository hygiene rules (for SARIF and reporting)."""
     return [
-        {"rule_id": "RH001", "title": "Tracked cache or build directory", "severity": "MEDIUM", "category": "Repository Hygiene", "description": "Directory should not be committed.", "recommendation": "Add to .gitignore and remove from index if tracked."},
-        {"rule_id": "RH002", "title": "Environment or secret file tracked", "severity": "HIGH", "category": "Sensitive Artifacts", "description": "Environment/secret file should not be committed.", "recommendation": "Add to .gitignore; revoke/rotate if exposed."},
-        {"rule_id": "RH003", "title": "Private key or certificate artifact", "severity": "HIGH", "category": "Secret Exposure", "description": "Private key or cert should never be committed.", "recommendation": "Remove and rotate/revoke credentials."},
-        {"rule_id": "RH004", "title": "Python bytecode file tracked", "severity": "LOW", "category": "Repository Hygiene", "description": ".pyc should not be committed.", "recommendation": "Add *.pyc and __pycache__/ to .gitignore."},
-        {"rule_id": "RH004b", "title": "Python optimized bytecode file tracked", "severity": "LOW", "category": "Repository Hygiene", "description": ".pyo should not be committed.", "recommendation": "Add *.pyo and __pycache__/ to .gitignore."},
-        {"rule_id": "RH005", "title": "Secret or API key detected in file", "severity": "CRITICAL", "category": "Secret Exposure", "description": "File content matches a secret or API key pattern. Exposed secrets in version control are critical: they remain in git history and can be exploited until revoked and rotated.", "recommendation": "Revoke and rotate the credential immediately. Remove the file from the repo and add to .gitignore; consider purging from history (e.g. BFG or git filter-repo)."},
-        {"rule_id": "RH010", "title": ".gitignore missing critical patterns", "severity": "HIGH", "category": "Repository Hygiene", "description": ".gitignore missing recommended patterns.", "recommendation": "Add patterns and remove tracked sensitive files."},
-        {"rule_id": "RH011", "title": "Verify sensitive files are not tracked", "severity": "MEDIUM", "category": "Repository Hygiene", "description": ".gitignore rules do not remove already tracked files; use git rm --cached.", "recommendation": "Use git rm --cached for any tracked sensitive paths."},
+        {
+            "rule_id": "RH001",
+            "title": "Tracked cache or build directory",
+            "severity": "MEDIUM",
+            "category": "Repository Hygiene",
+            "description": "Directory should not be committed.",
+            "recommendation": "Add to .gitignore and remove from index if tracked.",
+        },
+        {
+            "rule_id": "RH002",
+            "title": "Environment or secret file tracked",
+            "severity": "HIGH",
+            "category": "Sensitive Artifacts",
+            "description": "Environment/secret file should not be committed.",
+            "recommendation": "Add to .gitignore; revoke/rotate if exposed.",
+        },
+        {
+            "rule_id": "RH003",
+            "title": "Private key or certificate artifact",
+            "severity": "HIGH",
+            "category": "Secret Exposure",
+            "description": "Private key or cert should never be committed.",
+            "recommendation": "Remove and rotate/revoke credentials.",
+        },
+        {
+            "rule_id": "RH004",
+            "title": "Python bytecode file tracked",
+            "severity": "LOW",
+            "category": "Repository Hygiene",
+            "description": ".pyc should not be committed.",
+            "recommendation": "Add *.pyc and __pycache__/ to .gitignore.",
+        },
+        {
+            "rule_id": "RH004b",
+            "title": "Python optimized bytecode file tracked",
+            "severity": "LOW",
+            "category": "Repository Hygiene",
+            "description": ".pyo should not be committed.",
+            "recommendation": "Add *.pyo and __pycache__/ to .gitignore.",
+        },
+        {
+            "rule_id": "RH005",
+            "title": "Secret or API key detected in file",
+            "severity": "CRITICAL",
+            "category": "Secret Exposure",
+            "description": "File content matches a secret or API key pattern. Exposed secrets in version control are critical: they remain in git history and can be exploited until revoked and rotated.",
+            "recommendation": "Revoke and rotate the credential immediately. Remove the file from the repo and add to .gitignore; consider purging from history (e.g. BFG or git filter-repo).",
+        },
+        {
+            "rule_id": "RH010",
+            "title": ".gitignore missing critical patterns",
+            "severity": "HIGH",
+            "category": "Repository Hygiene",
+            "description": ".gitignore missing recommended patterns.",
+            "recommendation": "Add patterns and remove tracked sensitive files.",
+        },
+        {
+            "rule_id": "RH011",
+            "title": "Verify sensitive files are not tracked",
+            "severity": "MEDIUM",
+            "category": "Repository Hygiene",
+            "description": ".gitignore rules do not remove already tracked files; use git rm --cached.",
+            "recommendation": "Use git rm --cached for any tracked sensitive paths.",
+        },
     ]

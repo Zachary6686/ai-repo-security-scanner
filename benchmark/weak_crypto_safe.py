@@ -1,4 +1,5 @@
 """Benchmark: weak crypto — SAFE."""
+
 import hashlib
 import secrets
 

@@ -5,6 +5,7 @@ Finding normalization and deduplication.
 - Computes a stable fingerprint per finding for deduplication.
 - Deduplicates findings by fingerprint (keeps first occurrence).
 """
+
 from __future__ import annotations
 
 import hashlib

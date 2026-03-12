@@ -23,14 +23,22 @@ class TestCLISmoke(unittest.TestCase):
             out_dir = Path(tmp) / "output"
             out_dir.mkdir(parents=True, exist_ok=True)
 
-            completed = _run_scanner([
-                str(samples),
-                "--output-dir", str(out_dir),
-                "--format", "all",
-                "--workers", "2",
-                "--top-files", "5",
-            ])
-            self.assertEqual(completed.returncode, 0, msg=completed.stdout + "\n" + completed.stderr)
+            completed = _run_scanner(
+                [
+                    str(samples),
+                    "--output-dir",
+                    str(out_dir),
+                    "--format",
+                    "all",
+                    "--workers",
+                    "2",
+                    "--top-files",
+                    "5",
+                ]
+            )
+            self.assertEqual(
+                completed.returncode, 0, msg=completed.stdout + "\n" + completed.stderr
+            )
 
             self.assertTrue((out_dir / "security_report.md").exists())
             self.assertTrue((out_dir / "security_report.html").exists())
@@ -49,13 +57,18 @@ class TestCLISmoke(unittest.TestCase):
         samples = repo_root / "samples"  # has HIGH findings
         with tempfile.TemporaryDirectory() as tmp:
             out_dir = Path(tmp) / "out"
-            completed = _run_scanner([
-                str(samples),
-                "--output-dir", str(out_dir),
-                "--format", "json",
-                "--fail-on-severity", "HIGH",
-                "-q",
-            ])
+            completed = _run_scanner(
+                [
+                    str(samples),
+                    "--output-dir",
+                    str(out_dir),
+                    "--format",
+                    "json",
+                    "--fail-on-severity",
+                    "HIGH",
+                    "-q",
+                ]
+            )
             self.assertEqual(completed.returncode, 1)
 
     def test_fail_on_score_exits_one_when_above_threshold(self):
@@ -63,13 +76,18 @@ class TestCLISmoke(unittest.TestCase):
         samples = repo_root / "samples"
         with tempfile.TemporaryDirectory() as tmp:
             out_dir = Path(tmp) / "out"
-            completed = _run_scanner([
-                str(samples),
-                "--output-dir", str(out_dir),
-                "--format", "json",
-                "--fail-on-score", "0",
-                "-q",
-            ])
+            completed = _run_scanner(
+                [
+                    str(samples),
+                    "--output-dir",
+                    str(out_dir),
+                    "--format",
+                    "json",
+                    "--fail-on-score",
+                    "0",
+                    "-q",
+                ]
+            )
             self.assertEqual(completed.returncode, 1)
 
     def test_nonexistent_target_exits_one(self):
@@ -79,4 +97,3 @@ class TestCLISmoke(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

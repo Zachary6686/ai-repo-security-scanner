@@ -5,16 +5,12 @@ Validates count-based severity scoring (CRITICAL×10, HIGH×6, MEDIUM×3, LOW×1
 RiskSummary, compute_risk_score, risk level boundaries, and top risky file/category.
 All scoring is deterministic and explainable.
 """
+
 import unittest
 
 from core.risk import (
-    CONFIDENCE_WEIGHTS,
-    RISK_LEVEL_HIGH_MAX,
-    RISK_LEVEL_LOW_MAX,
-    RISK_LEVEL_MODERATE_MAX,
-    RiskSummary,
-    SEVERITY_WEIGHTS,
     TAINT_FLOW_BONUS_PER_FINDING,
+    RiskSummary,
     build_risk_summary,
     calculate_file_risk_score,
     calculate_repository_risk_score,

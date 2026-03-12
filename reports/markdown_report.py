@@ -1,4 +1,5 @@
 """Markdown report generator: human-readable audit-style report."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -6,9 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, Union
 
 
-def generate_markdown_report(
-    report_data: Dict[str, Any], output_path: Union[str, Path]
-) -> None:
+def generate_markdown_report(report_data: Dict[str, Any], output_path: Union[str, Path]) -> None:
     """
     Generate a Markdown security report.
 
@@ -58,7 +57,9 @@ def generate_markdown_report(
 
     lines.append(f"- Files scanned: **{files_scanned}**")
     lines.append(f"- Total findings: **{total_findings}**")
-    lines.append(f"- Repository risk score: **{risk_score}** — Risk level: **{risk_level or 'N/A'}**\n")
+    lines.append(
+        f"- Repository risk score: **{risk_score}** — Risk level: **{risk_level or 'N/A'}**\n"
+    )
 
     lines.append("### Severity Breakdown\n")
     if critical:
@@ -119,7 +120,12 @@ def generate_markdown_report(
         lines.append("")
 
     # Repository Hygiene (subset)
-    hygiene_categories = {"Repository Hygiene", "Sensitive Artifacts", "Secret Exposure", "Secret Exposure Risks"}
+    hygiene_categories = {
+        "Repository Hygiene",
+        "Sensitive Artifacts",
+        "Secret Exposure",
+        "Secret Exposure Risks",
+    }
     hygiene_findings = [f for f in findings if f.get("category") in hygiene_categories]
     if hygiene_findings:
         lines.append("## Repository Hygiene & Sensitive Artifacts\n")
@@ -175,9 +181,7 @@ def generate_markdown_report(
             file_path = finding.get("file_path") or finding.get("file")
             line = finding.get("line_number") or finding.get("line")
             description = finding.get("description", "")
-            recommendation = finding.get("recommendation") or finding.get(
-                "suggested_fix", ""
-            )
+            recommendation = finding.get("recommendation") or finding.get("suggested_fix", "")
             snippet = finding.get("code_snippet") or finding.get("snippet") or ""
 
             lines.append(f"### {title}")
@@ -220,4 +224,3 @@ def generate_markdown_report(
 
     output_path = Path(output_path)
     output_path.write_text("\n".join(lines), encoding="utf-8")
-

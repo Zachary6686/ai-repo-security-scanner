@@ -1,5 +1,7 @@
 """Benchmark: unsafe deserialization — VULNERABLE."""
+
 import pickle
+
 import yaml
 
 

@@ -3,6 +3,7 @@ Tests for the canonical severity model (core.severity).
 
 Ensures CRITICAL, HIGH, MEDIUM, LOW are consistent across the codebase.
 """
+
 import unittest
 
 from core.severity import (

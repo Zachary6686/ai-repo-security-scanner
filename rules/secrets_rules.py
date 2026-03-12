@@ -9,9 +9,7 @@ def get_rules() -> List[Dict[str, Any]]:
         {
             "rule_id": "SEC001",
             "title": "Potential hardcoded password",
-            "pattern": re.compile(
-                r"""(?i)\b(password|passwd|pwd)\b\s*[:=]\s*['"][^'"]{4,}['"]"""
-            ),
+            "pattern": re.compile(r"""(?i)\b(password|passwd|pwd)\b\s*[:=]\s*['"][^'"]{4,}['"]"""),
             "severity": "HIGH",
             "confidence": "MEDIUM",
             "category": "Secrets",
@@ -35,7 +33,9 @@ def get_rules() -> List[Dict[str, Any]]:
         {
             "rule_id": "SEC007",
             "title": "Potential hardcoded bearer token",
-            "pattern": re.compile(r"""(?i)\bauthorization\b\s*[:=]\s*['"]bearer\s+[A-Za-z0-9\-._~+/]+=*['"]"""),
+            "pattern": re.compile(
+                r"""(?i)\bauthorization\b\s*[:=]\s*['"]bearer\s+[A-Za-z0-9\-._~+/]+=*['"]"""
+            ),
             "severity": "HIGH",
             "confidence": "MEDIUM",
             "category": "Secrets",
@@ -55,4 +55,3 @@ def get_rules() -> List[Dict[str, Any]]:
             "python_only": False,
         },
     ]
-

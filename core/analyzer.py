@@ -11,7 +11,6 @@ from core.rules_engine import get_all_rules
 from core.severity import SEVERITY_WEIGHTS, normalize_severity
 from core.taint_analysis import analyze_file_taint
 
-
 # 这些行更像规则定义/说明文字，不应被当成真实漏洞代码
 METADATA_HINTS = (
     '"title"',
@@ -339,11 +338,7 @@ def _get_call_name(node: ast.Call) -> Optional[str]:
 
 def _call_has_keyword_true(node: ast.Call, keyword_name: str) -> bool:
     for kw in node.keywords:
-        if (
-            kw.arg == keyword_name
-            and isinstance(kw.value, ast.Constant)
-            and kw.value.value is True
-        ):
+        if kw.arg == keyword_name and isinstance(kw.value, ast.Constant) and kw.value.value is True:
             return True
     return False
 
@@ -428,4 +423,3 @@ def _deduplicate_findings(findings: List[Dict[str, Any]]) -> List[Dict[str, Any]
             unique.append(finding)
 
     return unique
-

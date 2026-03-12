@@ -4,7 +4,6 @@ from typing import Any, Dict, List
 
 from rules import config_rules, crypto_rules, python_rules, secrets_rules
 
-
 RULE_MODULES = [
     python_rules,
     secrets_rules,
@@ -107,4 +106,3 @@ def group_rules_by_category() -> Dict[str, List[Dict[str, Any]]]:
         category = str(rule.get("category", "General"))
         grouped.setdefault(category, []).append(rule)
     return grouped
-

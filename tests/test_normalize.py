@@ -1,4 +1,5 @@
 """Tests for finding normalization and deduplication."""
+
 import unittest
 
 from core.normalize import (

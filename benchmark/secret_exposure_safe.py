@@ -1,4 +1,5 @@
 """Benchmark: secret exposure — SAFE (env/config)."""
+
 import os
 
 
@@ -8,4 +9,5 @@ def get_api_key():
 
 def get_password():
     from config import settings
+
     return getattr(settings, "PASSWORD", "")

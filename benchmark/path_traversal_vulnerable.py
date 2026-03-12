@@ -1,4 +1,6 @@
 """Benchmark: path traversal — VULNERABLE (user input in path)."""
+
+
 def read_file(filename):
     with open(filename) as f:
         return f.read()

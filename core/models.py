@@ -91,4 +91,3 @@ def finding_from_dict(data: Dict[str, Any]) -> Optional[Finding]:
         )
     except Exception:
         return None
-

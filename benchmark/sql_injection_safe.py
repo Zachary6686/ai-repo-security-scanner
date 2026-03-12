@@ -1,6 +1,9 @@
 """Benchmark: SQL injection — SAFE (parameterized)."""
+
+
 class Cursor:
-    def execute(self, sql, params=None): pass
+    def execute(self, sql, params=None):
+        pass
 
 
 def get_user(cursor, name):

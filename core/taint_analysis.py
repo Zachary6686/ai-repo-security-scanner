@@ -4,28 +4,41 @@ Intra-procedural taint analysis for Python.
 Tracks flows: source -> assignment/concatenation -> sink.
 Supports sanitizers to lower severity when tainted data is sanitized before reaching a sink.
 """
+
 from __future__ import annotations
 
 import ast
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 # ---------------------------------------------------------------------------
 # Source patterns: call names or (module, attr) that introduce tainted data
 # ---------------------------------------------------------------------------
-SOURCE_CALL_NAMES = frozenset({
-    "input",
-})
+SOURCE_CALL_NAMES = frozenset(
+    {
+        "input",
+    }
+)
 # Attribute-style: "request.args", "request.form", "sys.argv", "os.environ", etc.
-SOURCE_ATTR_PATTERNS = frozenset({
-    "request.args", "request.form", "request.json", "request.values",
-    "request.data", "request.get_json",
-    "sys.argv", "os.environ",
-})
+SOURCE_ATTR_PATTERNS = frozenset(
+    {
+        "request.args",
+        "request.form",
+        "request.json",
+        "request.values",
+        "request.data",
+        "request.get_json",
+        "sys.argv",
+        "os.environ",
+    }
+)
 # Call-style: request.args.get('x'), request.form.get('y')
-SOURCE_REQUEST_GET = frozenset({
-    "request.args.get", "request.form.get", "request.values.get",
-})
+SOURCE_REQUEST_GET = frozenset(
+    {
+        "request.args.get",
+        "request.form.get",
+        "request.values.get",
+    }
+)
 
 # ---------------------------------------------------------------------------
 # Sink patterns: (call_name, arg_index_for_tainted_arg, category, severity, message_key)
@@ -48,12 +61,14 @@ SINKS_SHELL_TRUE = frozenset({"subprocess.run", "subprocess.Popen", "subprocess.
 # ---------------------------------------------------------------------------
 # Sanitizers: if tainted data passes through these, lower severity or suppress
 # ---------------------------------------------------------------------------
-SANITIZER_CALL_NAMES = frozenset({
-    "shlex.quote",
-    "markupsafe.escape",
-    "werkzeug.escape",
-    "html.escape",
-})
+SANITIZER_CALL_NAMES = frozenset(
+    {
+        "shlex.quote",
+        "markupsafe.escape",
+        "werkzeug.escape",
+        "html.escape",
+    }
+)
 
 
 def _get_call_name(node: ast.Call) -> Optional[str]:
@@ -218,28 +233,30 @@ class _TaintVisitor(ast.NodeVisitor):
         msg = f"Tainted data from {source_desc} flows into {sink_desc}, which may allow {message_key} injection."
         if sanitized:
             msg = f"Tainted data (sanitized) from {source_desc} reaches {sink_desc}. Verify sanitization is sufficient."
-        self.findings.append({
-            "rule_id": rule_id,
-            "title": f"Taint flow: {source_desc} -> {sink_desc}",
-            "type": f"Taint flow: {source_desc} -> {sink_desc}",
-            "severity": severity,
-            "confidence": "MEDIUM",
-            "category": category,
-            "file_path": self.file_path,
-            "file": self.file_path,
-            "line_number": line_no,
-            "line": line_no,
-            "code_snippet": self._snippet(line_no),
-            "snippet": self._snippet(line_no),
-            "code": self.lines[line_no - 1].strip() if 0 < line_no <= len(self.lines) else "",
-            "description": msg,
-            "recommendation": "Validate and sanitize user input; use parameterized queries for SQL; avoid shell=True.",
-            "suggested_fix": "Validate and sanitize user input; use parameterized queries for SQL; avoid shell=True.",
-            "source": source_desc,
-            "sink": sink_desc,
-            "explanation": msg,
-            "taint_flow": True,
-        })
+        self.findings.append(
+            {
+                "rule_id": rule_id,
+                "title": f"Taint flow: {source_desc} -> {sink_desc}",
+                "type": f"Taint flow: {source_desc} -> {sink_desc}",
+                "severity": severity,
+                "confidence": "MEDIUM",
+                "category": category,
+                "file_path": self.file_path,
+                "file": self.file_path,
+                "line_number": line_no,
+                "line": line_no,
+                "code_snippet": self._snippet(line_no),
+                "snippet": self._snippet(line_no),
+                "code": self.lines[line_no - 1].strip() if 0 < line_no <= len(self.lines) else "",
+                "description": msg,
+                "recommendation": "Validate and sanitize user input; use parameterized queries for SQL; avoid shell=True.",
+                "suggested_fix": "Validate and sanitize user input; use parameterized queries for SQL; avoid shell=True.",
+                "source": source_desc,
+                "sink": sink_desc,
+                "explanation": msg,
+                "taint_flow": True,
+            }
+        )
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         self._tainted = set()
@@ -386,8 +403,36 @@ def analyze_file_taint(file_path: str, content: str, lines: List[str]) -> List[D
 def get_taint_rule_metadata() -> List[Dict[str, Any]]:
     """Rule metadata for SARIF and reporting."""
     return [
-        {"rule_id": "TAINT-CMD", "title": "Taint flow to command execution", "severity": "HIGH", "category": "Command Injection", "description": "Tainted user input flows into shell/process execution.", "recommendation": "Use allowlists and avoid shell=True; prefer subprocess with list args."},
-        {"rule_id": "TAINT-SQL", "title": "Taint flow to SQL execution", "severity": "HIGH", "category": "SQL Injection", "description": "Tainted user input flows into SQL execution.", "recommendation": "Use parameterized queries."},
-        {"rule_id": "TAINT-PATH", "title": "Taint flow to file path", "severity": "MEDIUM", "category": "Path Traversal", "description": "Tainted user input flows into file open path.", "recommendation": "Validate and sanitize paths; avoid user-controlled paths."},
-        {"rule_id": "TAINT001", "title": "Taint flow to dangerous sink", "severity": "HIGH", "category": "Taint Analysis", "description": "Tainted data reaches a dangerous sink.", "recommendation": "Validate and sanitize user input."},
+        {
+            "rule_id": "TAINT-CMD",
+            "title": "Taint flow to command execution",
+            "severity": "HIGH",
+            "category": "Command Injection",
+            "description": "Tainted user input flows into shell/process execution.",
+            "recommendation": "Use allowlists and avoid shell=True; prefer subprocess with list args.",
+        },
+        {
+            "rule_id": "TAINT-SQL",
+            "title": "Taint flow to SQL execution",
+            "severity": "HIGH",
+            "category": "SQL Injection",
+            "description": "Tainted user input flows into SQL execution.",
+            "recommendation": "Use parameterized queries.",
+        },
+        {
+            "rule_id": "TAINT-PATH",
+            "title": "Taint flow to file path",
+            "severity": "MEDIUM",
+            "category": "Path Traversal",
+            "description": "Tainted user input flows into file open path.",
+            "recommendation": "Validate and sanitize paths; avoid user-controlled paths.",
+        },
+        {
+            "rule_id": "TAINT001",
+            "title": "Taint flow to dangerous sink",
+            "severity": "HIGH",
+            "category": "Taint Analysis",
+            "description": "Tainted data reaches a dangerous sink.",
+            "recommendation": "Validate and sanitize user input.",
+        },
     ]

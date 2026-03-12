@@ -4,9 +4,9 @@ Rule metadata registry: load, validate, and lookup rule metadata.
 Hybrid architecture: detection logic stays in Python; metadata lives in
 rules/metadata/ (YAML). Findings are enriched with metadata at report time.
 """
+
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 

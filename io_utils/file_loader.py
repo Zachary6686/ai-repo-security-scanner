@@ -108,4 +108,3 @@ def read_file_content(file_path: Path, max_chars: int = 6000) -> str:
         return file_path.read_text(encoding="utf-8", errors="ignore")[:max_chars]
     except Exception as e:
         return f"ERROR READING FILE: {e}"
-

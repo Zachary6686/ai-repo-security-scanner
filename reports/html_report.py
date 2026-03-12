@@ -1,4 +1,5 @@
 """HTML report generator: standalone security dashboard with risk summary and findings."""
+
 from __future__ import annotations
 
 from html import escape
@@ -6,9 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, Union
 
 
-def generate_html_report(
-    report_data: Dict[str, Any], output_path: Union[str, Path]
-) -> None:
+def generate_html_report(report_data: Dict[str, Any], output_path: Union[str, Path]) -> None:
     """
     Generate a standalone HTML security dashboard.
 
@@ -32,8 +31,12 @@ def generate_html_report(
     total_findings = int(report_data.get("total_findings", 0))
     severity_counts = report_data.get("severity_counts", {}) or {}
     repository_risk_score = int(report_data.get("repository_risk_score", 0))
-    risk_level = str(report_data.get("risk_level", "") or _get_risk_label_from_score(repository_risk_score))
-    risk_level_css = str(report_data.get("risk_level_css_class", "") or _get_risk_css_class(repository_risk_score))
+    risk_level = str(
+        report_data.get("risk_level", "") or _get_risk_label_from_score(repository_risk_score)
+    )
+    risk_level_css = str(
+        report_data.get("risk_level_css_class", "") or _get_risk_css_class(repository_risk_score)
+    )
     score_breakdown = report_data.get("score_breakdown") or {}
     top_risky_files = report_data.get("top_risky_files", []) or []
     top_risky_categories = report_data.get("top_risky_categories", []) or []
@@ -59,9 +62,16 @@ def generate_html_report(
 
     severity_distribution_html = _build_severity_distribution(severity_counts, total_findings)
     category_distribution_html = _build_category_distribution(top_risky_categories)
-    risk_explanation_html = _build_risk_explanation_panel(repository_risk_score, risk_level, score_breakdown)
+    risk_explanation_html = _build_risk_explanation_panel(
+        repository_risk_score, risk_level, score_breakdown
+    )
 
-    hygiene_categories = {"Repository Hygiene", "Sensitive Artifacts", "Secret Exposure", "Secret Exposure Risks"}
+    hygiene_categories = {
+        "Repository Hygiene",
+        "Sensitive Artifacts",
+        "Secret Exposure",
+        "Secret Exposure Risks",
+    }
     hygiene_findings = [f for f in findings if f.get("category") in hygiene_categories]
     hygiene_section_html = (
         _build_findings_table(hygiene_findings)
@@ -733,7 +743,9 @@ def _build_category_distribution(top_risky_categories):
     for item in top_risky_categories:
         cat = escape(str(item.get("category", "General")))
         count = int(item.get("count", 0))
-        rows.append(f"<tr><td class=\"path\">{cat}</td><td><strong>{count}</strong> findings</td></tr>")
+        rows.append(
+            f'<tr><td class="path">{cat}</td><td><strong>{count}</strong> findings</td></tr>'
+        )
     return f"""
     <div class="table-wrap">
         <table>
@@ -753,8 +765,8 @@ def _build_risk_explanation_panel(repository_risk_score, risk_level, score_break
     if not score_breakdown:
         return (
             f'<p class="muted">Risk score: <strong>{repository_risk_score}</strong> — '
-            f'Level: <strong>{escape(risk_level)}</strong>. '
-            'Breakdown not available (upgrade scanner for full breakdown).</p>'
+            f"Level: <strong>{escape(risk_level)}</strong>. "
+            "Breakdown not available (upgrade scanner for full breakdown).</p>"
         )
     rows = []
     labels = {
@@ -810,7 +822,9 @@ def _build_top_risky_files_table(top_risky_files):
         high = int(sev.get("HIGH", 0))
         medium = int(sev.get("MEDIUM", 0))
         low = int(sev.get("LOW", 0))
-        crit_badge = f'<span class="badge badge-critical">CRIT {critical}</span>' if critical else ""
+        crit_badge = (
+            f'<span class="badge badge-critical">CRIT {critical}</span>' if critical else ""
+        )
         rows.append(
             f"""
         <tr>
@@ -839,7 +853,7 @@ def _build_top_risky_files_table(top_risky_files):
                 </tr>
             </thead>
             <tbody>
-                {''.join(rows)}
+                {"".join(rows)}
             </tbody>
         </table>
     </div>
@@ -861,17 +875,12 @@ def _build_findings_table(findings):
         file_path = str(finding.get("file_path") or finding.get("file") or "unknown")
         line_number = finding.get("line_number") or finding.get("line") or ""
         description = str(finding.get("description", ""))
-        recommendation = str(
-            finding.get("recommendation") or finding.get("suggested_fix") or ""
-        )
+        recommendation = str(finding.get("recommendation") or finding.get("suggested_fix") or "")
         remediation = str(finding.get("remediation", ""))
         cwe = str(finding.get("cwe", ""))
         owasp = str(finding.get("owasp", ""))
         code_snippet = str(
-            finding.get("code_snippet")
-            or finding.get("snippet")
-            or finding.get("code")
-            or ""
+            finding.get("code_snippet") or finding.get("snippet") or finding.get("code") or ""
         )
 
         severity_badge = _build_severity_badge(severity)
@@ -918,9 +927,7 @@ def _build_findings_table(findings):
                 else ""
             )
             snippet_html = (
-                f"<div class='code-block'>{escape(code_snippet)}</div>"
-                if code_snippet
-                else ""
+                f"<div class='code-block'>{escape(code_snippet)}</div>" if code_snippet else ""
             )
 
             details_html = f"""
@@ -964,7 +971,7 @@ def _build_findings_table(findings):
                 </tr>
             </thead>
             <tbody>
-                {''.join(rows)}
+                {"".join(rows)}
             </tbody>
         </table>
     </div>
@@ -1009,4 +1016,3 @@ def _get_risk_label_and_class(score):
     label = _get_risk_label_from_score(score)
     cls = _get_risk_css_class(score)
     return label, f"risk-pill {cls}"
-

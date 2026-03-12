@@ -10,4 +10,3 @@ def suggest_patch(rule_name):
     }
 
     return suggestions.get(rule_name, "Review code manually.")
-

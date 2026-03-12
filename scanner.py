@@ -5,6 +5,7 @@ Scans a target directory for code vulnerabilities (SAST) and repository
 hygiene issues (sensitive artifacts, .gitignore gaps). Produces reports
 in Markdown, HTML, JSON, and SARIF.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -15,6 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 from core.analyzer import analyze_file
+from core.normalize import normalize_and_deduplicate_findings
 from core.repo_hygiene import check_gitignore_hygiene, scan_repository_hygiene
 from core.risk import (
     build_risk_summary,
@@ -23,9 +25,8 @@ from core.risk import (
     get_top_risky_files,
     summarize_severity_counts,
 )
-from core.severity import SEVERITY_LEVELS, normalize_severity
 from core.rule_registry import enrich_findings
-from core.normalize import normalize_and_deduplicate_findings
+from core.severity import SEVERITY_LEVELS, normalize_severity
 from io_utils.repo_loader import get_source_files
 from reports.html_report import generate_html_report
 from reports.json_report import generate_json_report
@@ -129,6 +130,7 @@ def parse_args() -> argparse.Namespace:
 # Scan logic
 # =========================
 
+
 def scan_file_safe(file_path: str) -> Dict[str, Any]:
     """
     Run SAST on a single file without raising.
@@ -140,7 +142,9 @@ def scan_file_safe(file_path: str) -> Dict[str, Any]:
         findings = analyze_file(file_path)
         return {"file": file_path, "findings": findings, "error": None}
     except Exception as e:
-        logger.warning("Scan failed for %s: %s", file_path, e, exc_info=logger.isEnabledFor(logging.DEBUG))
+        logger.warning(
+            "Scan failed for %s: %s", file_path, e, exc_info=logger.isEnabledFor(logging.DEBUG)
+        )
         return {"file": file_path, "findings": [], "error": str(e)}
 
 
@@ -157,18 +161,13 @@ def scan_repository(
     errors: List[Dict[str, str]] = []
 
     with ThreadPoolExecutor(max_workers=workers) as executor:
-        futures = {
-            executor.submit(scan_file_safe, f): f for f in files
-        }
+        futures = {executor.submit(scan_file_safe, f): f for f in files}
 
         for future in as_completed(futures):
             result = future.result()
 
             if result["error"]:
-                errors.append({
-                    "file": result["file"],
-                    "error": result["error"]
-                })
+                errors.append({"file": result["file"], "error": result["error"]})
 
             results.extend(result["findings"])
 
@@ -383,7 +382,10 @@ def main() -> None:
         print_summary(len(files), findings, args.top_files)
 
     report_data = build_report_data(
-        target, files, findings, errors,
+        target,
+        files,
+        findings,
+        errors,
         top_files_n=args.top_files,
         top_categories_n=10,
     )

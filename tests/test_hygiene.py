@@ -4,6 +4,7 @@ Tests for repository hygiene and .gitignore checks.
 Covers: sensitive file detection, .env/.pyc/__pycache__/key artifacts,
 .gitignore pattern validation, and remediation guidance in findings.
 """
+
 import tempfile
 import unittest
 from pathlib import Path
@@ -56,7 +57,9 @@ class TestRepositoryHygieneDetection(unittest.TestCase):
     def test_detects_pem_key_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             pem = Path(tmp) / "secret.pem"
-            pem.write_text("-----BEGIN PRIVATE KEY-----\nMOCK\n-----END PRIVATE KEY-----\n", encoding="utf-8")
+            pem.write_text(
+                "-----BEGIN PRIVATE KEY-----\nMOCK\n-----END PRIVATE KEY-----\n", encoding="utf-8"
+            )
             findings = scan_repository_hygiene(tmp)
         key_findings = [f for f in findings if f.get("rule_id") == "RH003"]
         self.assertGreaterEqual(len(key_findings), 1)
@@ -122,7 +125,9 @@ class TestRepositoryHygieneDetection(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             f = Path(tmp) / "token.env"
             # ghp_ + exactly 36 alphanumeric chars per spec
-            f.write_text("GITHUB_TOKEN=ghp_1234567890abcdefghijklmnopqrstuvwxyz\n", encoding="utf-8")
+            f.write_text(
+                "GITHUB_TOKEN=ghp_1234567890abcdefghijklmnopqrstuvwxyz\n", encoding="utf-8"
+            )
             findings = scan_repository_hygiene(tmp)
         secret_findings = [x for x in findings if x.get("rule_id") == "RH005"]
         self.assertGreaterEqual(len(secret_findings), 1)
@@ -185,7 +190,9 @@ class TestGitignoreHygiene(unittest.TestCase):
         """RH010/RH011 should explain that .gitignore does not remove tracked files."""
         with tempfile.TemporaryDirectory() as tmp:
             findings = check_gitignore_hygiene(tmp)
-        all_remediation = " ".join(f.get("remediation", "") or f.get("description", "") for f in findings)
+        all_remediation = " ".join(
+            f.get("remediation", "") or f.get("description", "") for f in findings
+        )
         self.assertIn("git rm", all_remediation)
         self.assertTrue(
             "cached" in all_remediation or "tracked" in all_remediation.lower(),
@@ -217,6 +224,7 @@ class TestReportSerializationOfHygieneFindings(unittest.TestCase):
         import json
         import tempfile
         from pathlib import Path
+
         from reports.json_report import generate_json_report
 
         report_data = {

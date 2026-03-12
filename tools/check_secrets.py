@@ -10,6 +10,7 @@ main scanner; use --include-test-fixtures to scan those directories too.
 .env and .env.* files are always checked wherever they appear (including under
 excluded dirs), since they should not be committed with real secrets.
 """
+
 import argparse
 import re
 import sys
@@ -19,26 +20,28 @@ SECRET_PATTERNS = {
     "OpenAI API Key": re.compile(r"sk-[A-Za-z0-9]{40,}"),
     "AWS Access Key": re.compile(r"AKIA[0-9A-Z]{16}"),
     "GitHub Token": re.compile(r"ghp_[A-Za-z0-9]{36}"),
-    "Generic API Key": re.compile(
-        r"api[_-]?key\s*=\s*['\"][A-Za-z0-9\-]{16,}['\"]", re.IGNORECASE
-    ),
+    "Generic API Key": re.compile(r"api[_-]?key\s*=\s*['\"][A-Za-z0-9\-]{16,}['\"]", re.IGNORECASE),
 }
 
 # Always skip these directories (build/cache/vcs)
-ALWAYS_IGNORED_DIRS = frozenset({
-    ".git",
-    "__pycache__",
-    "venv",
-    ".venv",
-    "output",
-})
+ALWAYS_IGNORED_DIRS = frozenset(
+    {
+        ".git",
+        "__pycache__",
+        "venv",
+        ".venv",
+        "output",
+    }
+)
 
 # Directories that often contain intentional dummy secrets (excluded unless --include-test-fixtures)
-FIXTURE_DIRS = frozenset({
-    "tests",
-    "benchmark",
-    "samples",
-})
+FIXTURE_DIRS = frozenset(
+    {
+        "tests",
+        "benchmark",
+        "samples",
+    }
+)
 
 
 def _is_env_file(path: Path) -> bool:

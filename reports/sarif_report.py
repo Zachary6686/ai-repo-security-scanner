@@ -10,7 +10,6 @@ from core.rule_registry import LEGACY_RULE_ID_MAP, get_registry
 from core.rules_engine import get_all_regex_rules, get_python_ast_rule_metadata
 from core.taint_analysis import get_taint_rule_metadata
 
-
 SARIF_VERSION = "2.1.0"
 SARIF_SCHEMA = "https://json.schemastore.org/sarif-2.1.0.json"
 
@@ -156,7 +155,9 @@ def _build_sarif_rules(rules_index: Dict[str, Dict[str, Any]]) -> List[Dict[str,
                 "id": rule_id,
                 "name": rule_id,
                 "shortDescription": {"text": title},
-                "fullDescription": {"text": "\n".join(full_desc_parts) if full_desc_parts else title},
+                "fullDescription": {
+                    "text": "\n".join(full_desc_parts) if full_desc_parts else title
+                },
                 "help": {"text": help_text},
                 "properties": props,
             }
@@ -164,7 +165,9 @@ def _build_sarif_rules(rules_index: Dict[str, Dict[str, Any]]) -> List[Dict[str,
     return sarif_rules
 
 
-def _build_results(findings: List[Dict[str, Any]], rules_index: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _build_results(
+    findings: List[Dict[str, Any]], rules_index: Dict[str, Dict[str, Any]]
+) -> List[Dict[str, Any]]:
     results: List[Dict[str, Any]] = []
     for f in findings:
         rule_id = str(f.get("rule_id") or "UNKNOWN")
@@ -227,4 +230,3 @@ def _safe_int(value: Optional[Any]) -> Optional[int]:
         return int(value)
     except Exception:
         return None
-

@@ -68,11 +68,22 @@ class TestReportsSmoke(unittest.TestCase):
     def test_report_data_severity_counts_include_all_levels(self):
         """Severity counts used in reports should support CRITICAL, HIGH, MEDIUM, LOW."""
         from scanner import build_report_data
+
         target = Path(__file__).resolve().parents[1] / "samples"
         files = ["samples/vulnerable_sample.py"]
         findings = [
-            {"file_path": "a.py", "severity": "CRITICAL", "confidence": "HIGH", "category": "Secret Exposure"},
-            {"file_path": "b.py", "severity": "HIGH", "confidence": "MEDIUM", "category": "Command Injection"},
+            {
+                "file_path": "a.py",
+                "severity": "CRITICAL",
+                "confidence": "HIGH",
+                "category": "Secret Exposure",
+            },
+            {
+                "file_path": "b.py",
+                "severity": "HIGH",
+                "confidence": "MEDIUM",
+                "category": "Command Injection",
+            },
         ]
         errors = []
         data = build_report_data(target, files, findings, errors, top_files_n=5, top_categories_n=5)
@@ -87,4 +98,3 @@ class TestReportsSmoke(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

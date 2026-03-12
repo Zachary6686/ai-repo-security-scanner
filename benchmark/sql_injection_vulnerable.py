@@ -1,7 +1,10 @@
 """Benchmark: SQL injection — VULNERABLE (string concatenation)."""
+
+
 # Simulated DB cursor for demo
 class Cursor:
-    def execute(self, sql): pass
+    def execute(self, sql):
+        pass
 
 
 def get_user(cursor, name):

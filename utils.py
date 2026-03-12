@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-
 Severity = Literal["HIGH", "MEDIUM", "LOW"]
 
 SEVERITY_WEIGHTS: dict[Severity, int] = {
@@ -59,4 +58,3 @@ def compute_risk_score(summary: RiskSummary) -> tuple[int, str]:
 def verbose_print(enabled: bool, message: str) -> None:
     if enabled:
         print(message)
-

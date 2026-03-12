@@ -1,13 +1,12 @@
 """
 Tests for rule metadata registry: loading, validation, lookup, and finding enrichment.
 """
-import pytest
 
 from core.rule_registry import (
     LEGACY_RULE_ID_MAP,
+    enrich_findings,
     get_registry,
     load_metadata,
-    enrich_findings,
 )
 
 
@@ -108,6 +107,7 @@ class TestReportOutputWithMetadata:
         import json
         import tempfile
         from pathlib import Path
+
         from reports.json_report import generate_json_report
 
         findings = [
@@ -139,19 +139,24 @@ class TestReportOutputWithMetadata:
             data = json.loads(out.read_text(encoding="utf-8"))
         finding = data["findings"][0]
         assert finding.get("rule_id") == "PY001"
-        assert "cwe" in finding or "remediation" in finding or finding.get("title") == "Use of eval()"
+        assert (
+            "cwe" in finding or "remediation" in finding or finding.get("title") == "Use of eval()"
+        )
 
     def test_sarif_rule_has_help_and_properties(self):
         import json
         import tempfile
         from pathlib import Path
+
         from reports.sarif_report import generate_sarif_report
 
         report_data = {
             "target": ".",
-            "findings": enrich_findings([
-                {"rule_id": "PY003", "file_path": "x.py", "line_number": 1},
-            ]),
+            "findings": enrich_findings(
+                [
+                    {"rule_id": "PY003", "file_path": "x.py", "line_number": 1},
+                ]
+            ),
         }
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "report.sarif"
@@ -160,7 +165,15 @@ class TestReportOutputWithMetadata:
         rules = data["runs"][0]["tool"]["driver"]["rules"]
         rule_ids = [r["id"] for r in rules]
         assert "PY003" in rule_ids or any("python" in r["id"] for r in rules)
-        one = next((r for r in rules if r["id"] == "PY003" or "os.system" in r.get("shortDescription", {}).get("text", "")), rules[0])
+        one = next(
+            (
+                r
+                for r in rules
+                if r["id"] == "PY003"
+                or "os.system" in r.get("shortDescription", {}).get("text", "")
+            ),
+            rules[0],
+        )
         assert "shortDescription" in one
         assert "help" in one
         assert "properties" in one

@@ -31,7 +31,9 @@ def get_rules() -> List[Dict[str, Any]]:
         {
             "rule_id": "SEC010",
             "title": "Insecure SSL/TLS protocol settings",
-            "pattern": re.compile(r"""(?i)\b(PROTOCOL_SSLv2|PROTOCOL_SSLv3|PROTOCOL_TLSv1|TLSv1)\b"""),
+            "pattern": re.compile(
+                r"""(?i)\b(PROTOCOL_SSLv2|PROTOCOL_SSLv3|PROTOCOL_TLSv1|TLSv1)\b"""
+            ),
             "severity": "MEDIUM",
             "confidence": "MEDIUM",
             "category": "TLS / SSL",
@@ -40,4 +42,3 @@ def get_rules() -> List[Dict[str, Any]]:
             "python_only": False,
         },
     ]
-

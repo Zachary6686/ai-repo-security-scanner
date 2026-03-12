@@ -17,6 +17,7 @@ Risk level thresholds (numeric score → label):
   - 51–100 → High
   - >100   → Critical
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -25,6 +26,8 @@ from typing import Any, Dict, List, Literal, Tuple
 from core.severity import (
     SEVERITY_LEVELS,
     SEVERITY_WEIGHTS,  # re-exported for tests and external use
+)
+from core.severity import (
     normalize_severity as _normalize_severity_canonical,
 )
 
@@ -45,27 +48,33 @@ TAINT_FLOW_BONUS_PER_FINDING = 5
 SECRET_EXPOSURE_BONUS_PER_FINDING = 6
 CRITICAL_CATEGORY_BONUS_PER_FINDING = 3
 
-CRITICAL_CATEGORIES = frozenset({
-    "Command Injection",
-    "SQL Injection",
-    "Secret Exposure",
-    "Secrets",
-    "Sensitive Artifacts",
-    "Unsafe Deserialization",
-})
+CRITICAL_CATEGORIES = frozenset(
+    {
+        "Command Injection",
+        "SQL Injection",
+        "Secret Exposure",
+        "Secrets",
+        "Sensitive Artifacts",
+        "Unsafe Deserialization",
+    }
+)
 
-SECRET_EXPOSURE_CATEGORIES = frozenset({
-    "Secret Exposure",
-    "Secrets",
-    "Sensitive Artifacts",
-})
+SECRET_EXPOSURE_CATEGORIES = frozenset(
+    {
+        "Secret Exposure",
+        "Secrets",
+        "Sensitive Artifacts",
+    }
+)
 
-HYGIENE_CATEGORIES = frozenset({
-    "Repository Hygiene",
-    "Sensitive Artifacts",
-    "Secret Exposure",
-    "Secret Exposure Risks",
-})
+HYGIENE_CATEGORIES = frozenset(
+    {
+        "Repository Hygiene",
+        "Sensitive Artifacts",
+        "Secret Exposure",
+        "Secret Exposure Risks",
+    }
+)
 
 # Risk level bands (score → label)
 RISK_LEVEL_LOW_MAX = 20
@@ -387,12 +396,14 @@ def get_top_risky_files(
             sev = _normalize_severity(f.get("severity", "LOW"))
             if sev in severity_counts:
                 severity_counts[sev] += 1
-        ranked.append({
-            "file_path": file_path,
-            "risk_score": risk_score,
-            "findings_count": len(file_findings),
-            "severity_counts": severity_counts,
-        })
+        ranked.append(
+            {
+                "file_path": file_path,
+                "risk_score": risk_score,
+                "findings_count": len(file_findings),
+                "severity_counts": severity_counts,
+            }
+        )
     ranked.sort(
         key=lambda x: (-x["risk_score"], -x["findings_count"], (x["file_path"] or "").lower()),
     )

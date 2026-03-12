@@ -4,7 +4,6 @@ Tests for intra-procedural taint analysis.
 Covers: command injection flow, SQL injection flow, path traversal,
 and sanitized flows (reduced severity or suppression).
 """
-import pytest
 
 from core.taint_analysis import analyze_file_taint, get_taint_rule_metadata
 
@@ -165,15 +164,16 @@ def f():
 
 def test_analyzer_integration_taint_included():
     """Full analyze_file() includes taint findings for Python files."""
-    from core.analyzer import analyze_file
     import tempfile
     from pathlib import Path
 
-    code = '''
+    from core.analyzer import analyze_file
+
+    code = """
 def main():
     user = input()
     os.system(user)
-'''
+"""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
         f.write(code)
         path = f.name

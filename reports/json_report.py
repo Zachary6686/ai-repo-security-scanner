@@ -1,4 +1,5 @@
 """JSON report generator: structured export for automation."""
+
 from __future__ import annotations
 
 import json
@@ -7,9 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, Union
 
 
-def generate_json_report(
-    report_data: Dict[str, Any], output_path: Union[str, Path]
-) -> None:
+def generate_json_report(report_data: Dict[str, Any], output_path: Union[str, Path]) -> None:
     """
     Write a structured JSON report for automation and tooling.
 
@@ -40,4 +39,3 @@ def generate_json_report(
 
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
-
