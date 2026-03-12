@@ -1,3 +1,4 @@
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -15,6 +16,20 @@ class TestAnalyzerSmoke(unittest.TestCase):
         rule_ids = {f.get("rule_id") for f in findings}
         # AST rules should trigger on this sample.
         self.assertTrue({"PY001", "PY003", "PY005", "PY006"}.intersection(rule_ids))
+
+    def test_compile_detected_as_py007(self):
+        """compile() is reported as PY007 (Code Injection)."""
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".py", delete=False, encoding="utf-8"
+        ) as f:
+            f.write("x = compile('1+1', '<str>', 'eval')\n")
+            path = f.name
+        try:
+            findings = analyze_file(path)
+            rule_ids = {f.get("rule_id") for f in findings}
+            self.assertIn("PY007", rule_ids)
+        finally:
+            Path(path).unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

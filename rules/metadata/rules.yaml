@@ -88,6 +88,20 @@ rules:
     references:
       - https://cwe.mitre.org/data/definitions/502.html
 
+  - rule_id: python-compile
+    title: Use of compile()
+    description: compile() builds code objects from strings; with untrusted input it can enable code execution (e.g. via exec()).
+    category: Code Injection
+    severity: HIGH
+    confidence: MEDIUM
+    detection_type: ast
+    language: python
+    cwe: CWE-94
+    owasp: A03:2021-Injection
+    remediation: Avoid compiling untrusted input. Use safe parsing or restricted modes; prefer structured data over code strings.
+    references:
+      - https://cwe.mitre.org/data/definitions/94.html
+
   # --- Regex (secrets / config / crypto) ---
   - rule_id: secret-hardcoded-password
     title: Potential hardcoded password

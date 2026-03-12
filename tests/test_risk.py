@@ -106,7 +106,7 @@ class TestTaintFlowBonus(unittest.TestCase):
 
 
 class TestHygieneFindings(unittest.TestCase):
-    """Findings in hygiene/secret categories still count by severity for repo score."""
+    """Findings in hygiene/secret categories count by severity plus category bonuses."""
 
     def test_hygiene_finding_counted_by_severity(self):
         findings = [
@@ -118,9 +118,11 @@ class TestHygieneFindings(unittest.TestCase):
             },
         ]
         score, breakdown = compute_risk_breakdown(findings)
-        self.assertEqual(score, 6)
         self.assertEqual(breakdown["high_contribution"], 6)
         self.assertEqual(breakdown["severity_contribution"], 6)
+        # Score includes severity + repository_hygiene_contribution
+        self.assertGreaterEqual(score, 6)
+        self.assertEqual(breakdown["repository_hygiene_contribution"], 1.5)
 
     def test_secret_exposure_finding_counted_by_severity(self):
         findings = [
@@ -132,8 +134,11 @@ class TestHygieneFindings(unittest.TestCase):
             },
         ]
         score, breakdown = compute_risk_breakdown(findings)
-        self.assertEqual(score, 6)
         self.assertEqual(breakdown["severity_contribution"], 6)
+        # Secret Exposure adds secret_exposure_contribution and critical_category_contribution
+        self.assertGreaterEqual(score, 6)
+        self.assertGreater(breakdown["secret_exposure_contribution"], 0)
+        self.assertGreater(breakdown["critical_category_contribution"], 0)
 
 
 class TestRiskLevelClassification(unittest.TestCase):
@@ -242,6 +247,23 @@ class TestBuildRiskSummary(unittest.TestCase):
         self.assertEqual(summary["risk_level"], "Low")
         self.assertEqual(summary["top_risky_files"], [])
         self.assertEqual(summary["top_risky_categories"], [])
+
+    def test_score_breakdown_has_all_components(self):
+        """Full breakdown includes taint, secret, hygiene, concentration, critical category."""
+        findings = [
+            {"file_path": "a.py", "severity": "HIGH", "confidence": "HIGH", "taint_flow": True},
+        ]
+        _, breakdown = compute_risk_breakdown(findings)
+        for key in (
+            "severity_contribution",
+            "taint_flow_contribution",
+            "secret_exposure_contribution",
+            "repository_hygiene_contribution",
+            "file_concentration_factor",
+            "unique_files_factor",
+            "critical_category_contribution",
+        ):
+            self.assertIn(key, breakdown, msg=f"Missing breakdown key: {key}")
 
 
 class TestRiskSummaryAndComputeScore(unittest.TestCase):

@@ -89,6 +89,15 @@ def get_python_ast_rule_metadata() -> List[Dict[str, Any]]:
             "description": "yaml.load() may be unsafe when parsing untrusted YAML content.",
             "recommendation": "Prefer yaml.safe_load() for untrusted input.",
         },
+        {
+            "rule_id": "PY007",
+            "title": "Use of compile()",
+            "severity": "HIGH",
+            "confidence": "MEDIUM",
+            "category": "Code Injection",
+            "description": "compile() builds code objects from strings; with untrusted input it can enable code execution.",
+            "recommendation": "Avoid compiling untrusted input. Use safe parsing or restricted modes.",
+        },
     ]
 
 

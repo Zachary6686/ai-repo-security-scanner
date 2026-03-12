@@ -201,7 +201,10 @@ def _build_results(findings: List[Dict[str, Any]], rules_index: Dict[str, Dict[s
         if location:
             result["locations"] = [location]
 
-        # Include a tiny bit of extra data for usefulness.
+        fingerprint = f.get("fingerprint")
+        if fingerprint:
+            result["fingerprints"] = {"contentHash": fingerprint}
+
         rule_meta = rules_index.get(rule_id, {})
         result["properties"] = {
             "severity": severity,

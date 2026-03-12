@@ -116,6 +116,19 @@ class DangerousCallVisitor(ast.NodeVisitor):
                 recommendation="Avoid exec(). Replace it with explicit logic or safer alternatives.",
             )
 
+        # compile(...) with untrusted input can lead to code execution
+        elif func_name == "compile":
+            self._add_finding(
+                node=node,
+                rule_id="PY007",
+                title="Use of compile()",
+                severity="HIGH",
+                confidence="MEDIUM",
+                category="Code Injection",
+                description="compile() builds code objects from strings; with untrusted input it can enable code execution (e.g. via exec()).",
+                recommendation="Avoid compiling untrusted input. Use safe parsing or restricted modes; prefer structured data over code strings.",
+            )
+
         # os.system(...)
         elif func_name == "os.system":
             self._add_finding(

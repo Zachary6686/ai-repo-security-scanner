@@ -243,39 +243,92 @@ def calculate_repository_risk_score(findings: List[Dict[str, Any]]) -> int:
     """
     Calculate repository risk score from findings.
 
-    Uses the canonical count-based formula:
-      score = critical*10 + high*6 + medium*3 + low*1
+    Uses full breakdown: severity contribution + taint bonus + secret exposure
+    + hygiene + concentration + unique files + critical category bonus.
+    Deterministic and explainable; see compute_risk_breakdown for formula.
     """
-    counts = summarize_severity_counts(findings)
-    return compute_risk_score(counts)
+    score, _ = compute_risk_breakdown(findings)
+    return score
 
 
 def compute_risk_breakdown(findings: List[Dict[str, Any]]) -> Tuple[int, Dict[str, Any]]:
     """
-    Compute risk score and a breakdown for reports.
+    Compute risk score and a full breakdown for reports.
 
-    Returns (score, breakdown_dict). Breakdown includes per-severity
-    contributions so the total is explainable.
+    Repository score = severity_contribution + taint_flow_contribution
+    + secret_exposure_contribution + critical_category_contribution
+    + file_concentration_factor + unique_files_factor.
+    All components are deterministic and explainable.
     """
+    empty_breakdown = {
+        "critical_contribution": 0,
+        "high_contribution": 0,
+        "medium_contribution": 0,
+        "low_contribution": 0,
+        "severity_contribution": 0,
+        "taint_flow_contribution": 0.0,
+        "secret_exposure_contribution": 0.0,
+        "repository_hygiene_contribution": 0.0,
+        "file_concentration_factor": 0.0,
+        "unique_files_factor": 0.0,
+        "critical_category_contribution": 0.0,
+    }
     if not findings:
-        return 0, {
-            "critical_contribution": 0,
-            "high_contribution": 0,
-            "medium_contribution": 0,
-            "low_contribution": 0,
-            "severity_contribution": 0,
-        }
+        return 0, empty_breakdown
+
     counts = summarize_severity_counts(findings)
     summary = severity_counts_to_risk_summary(counts)
-    score = compute_risk_score(summary)
+    severity_contribution = compute_risk_score(summary)
+
+    n_taint = sum(1 for f in findings if _is_taint_finding(f))
+    n_secret = sum(1 for f in findings if _is_secret_exposure_finding(f))
+    n_hygiene = sum(1 for f in findings if _is_hygiene_finding(f))
+    n_critical_cat = sum(1 for f in findings if _is_critical_category(f))
+
+    taint_flow_contribution = n_taint * TAINT_FLOW_BONUS_PER_FINDING
+    secret_exposure_contribution = n_secret * SECRET_EXPOSURE_BONUS_PER_FINDING
+    repository_hygiene_contribution = min(15.0, n_hygiene * 1.5)  # cap for explainability
+    critical_category_contribution = n_critical_cat * CRITICAL_CATEGORY_BONUS_PER_FINDING
+
+    grouped = group_findings_by_file(findings)
+    n_files = len(grouped)
+    max_in_file = max(len(flist) for flist in grouped.values()) if grouped else 0
+    total_findings = len(findings)
+    # Concentration: higher when many findings concentrated in few files (only if 2+ files)
+    if n_files >= 2 and total_findings > 0:
+        concentration_ratio = max_in_file / total_findings
+        file_concentration_factor = round(min(10.0, concentration_ratio * 15), 1)
+    else:
+        file_concentration_factor = 0.0
+    # Breadth: small factor when findings span multiple files (only if 2+ files)
+    unique_files_factor = min(5.0, float(n_files)) if n_files >= 2 else 0.0
+
+    total_score = int(
+        round(
+            severity_contribution
+            + taint_flow_contribution
+            + secret_exposure_contribution
+            + repository_hygiene_contribution
+            + file_concentration_factor
+            + unique_files_factor
+            + critical_category_contribution,
+        )
+    )
+
     breakdown = {
         "critical_contribution": summary.critical * 10,
         "high_contribution": summary.high * 6,
         "medium_contribution": summary.medium * 3,
         "low_contribution": summary.low * 1,
-        "severity_contribution": score,
+        "severity_contribution": severity_contribution,
+        "taint_flow_contribution": round(taint_flow_contribution, 1),
+        "secret_exposure_contribution": round(secret_exposure_contribution, 1),
+        "repository_hygiene_contribution": round(repository_hygiene_contribution, 1),
+        "file_concentration_factor": file_concentration_factor,
+        "unique_files_factor": unique_files_factor,
+        "critical_category_contribution": round(critical_category_contribution, 1),
     }
-    return score, breakdown
+    return total_score, breakdown
 
 
 # ---------------------------------------------------------------------------
@@ -374,14 +427,13 @@ def build_risk_summary(
     """
     Build a full risk summary for reports.
 
-    Uses the canonical count-based score and includes risk_level,
-    score_breakdown (per-severity contributions), top_risky_files,
-    top_risky_categories, severity_counts, and total_findings.
+    Uses full risk score (severity + taint + secret + hygiene + concentration
+    + unique files + critical category). Includes score_breakdown with all
+    components, top_risky_files, top_risky_categories, severity_counts.
     """
     severity_counts = summarize_severity_counts(findings)
     summary = severity_counts_to_risk_summary(severity_counts)
-    score = compute_risk_score(summary)
-    _, breakdown = compute_risk_breakdown(findings)
+    score, breakdown = compute_risk_breakdown(findings)
     return {
         "repository_risk_score": score,
         "risk_level": get_risk_level(score),

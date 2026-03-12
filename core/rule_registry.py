@@ -18,6 +18,7 @@ LEGACY_RULE_ID_MAP: Dict[str, str] = {
     "PY004": "python-subprocess-shell-true",
     "PY005": "python-pickle-loads",
     "PY006": "python-yaml-load",
+    "PY007": "python-compile",
     "RH001": "repo-pycache-dir",
     "RH002": "repo-env-file",
     "RH003": "repo-private-key",
